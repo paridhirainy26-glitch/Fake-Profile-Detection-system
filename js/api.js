@@ -7,7 +7,7 @@
  *  POST /reports   {profile_id} -> {id,url}    GET /reports -> [Report]      GET /metrics -> model metrics
  *  POST /auth/login {email,password} -> {token}
  */
-const CFG={USE_MOCK:true,API_BASE:localStorageGet('api')||'http://localhost:8000/api'};
+const CFG={USE_MOCK:false,API_BASE:localStorageGet('api')||'http://127.0.0.1:5000/api'};
 function localStorageGet(k){try{return localStorage.getItem('fps_'+k)}catch(e){return null}}
 function localStorageSet(k,v){try{localStorage.setItem('fps_'+k,v)}catch(e){}}
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
@@ -36,10 +36,72 @@ const seed=[['luxe.deals.9921','Instagram',48,3900,2,6,'DM for guaranteed crypto
 ['x8fj2kq_09','Twitter/X',3,410,0,4,''],['cyber.dost','Twitter/X',5200,300,890,1200,'Cyber awareness for everyone'],['loan_fast_now','Facebook',40,2600,25,18,'Instant loan, forex tips, DM for details'],
 ['dev.patel','Instagram',760,700,180,900,'Full-stack dev | Ahmedabad'],['ceo.tech.official','Instagram',210,15,6,25,'CEO official page – verify your account now'],['sneha_arts','Instagram',2200,540,640,1300,'Artist. Commissions open.']]
 .map((a,i)=>{const p={id:i+1,username:a[0],platform:a[1],followers:a[2],following:a[3],posts:a[4],age_days:a[5],bio:a[6],captions:'',status:'Open',date:'2026-09-'+String(10+i).padStart(2,'0')};return Object.assign(p,scoreProfile(p))});
-const DB={profiles:seed,reports:[],user:localStorageGet('user')};
+let savedProfiles = null;
+try {
+  savedProfiles = JSON.parse(localStorageGet('profiles') || 'null');
+} catch (e) {
+  savedProfiles = null;
+}
+const DB = {
+  profiles: Array.isArray(savedProfiles) ? savedProfiles : seed,
+  reports: JSON.parse(localStorageGet('reports') || '[]'),
+  user: localStorageGet('user')
+};
+window.DB = DB;
 const API={
- async analyze(p){if(CFG.USE_MOCK){await sleep(900);const o={...p,id:DB.profiles.length+1,status:'Open',date:new Date().toISOString().slice(0,10),...scoreProfile(p)};return o}
-  return (await fetch(CFG.API_BASE+'/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json()},
+async analyze(p) {
+  if (CFG.USE_MOCK) {
+    await sleep(900);
+    return {
+      ...p,
+      id: DB.profiles.length + 1,
+      status: 'Open',
+      date: new Date().toISOString().slice(0, 10),
+      ...scoreProfile(p)
+    };
+  }
+
+  const username = String(p.username || '').trim();
+  const cleanName = username.replace(/[._]+/g, ' ').trim();
+  const bio = String(p.bio || '');
+  const captions = String(p.captions || '');
+  const textContent = bio + ' ' + captions;
+  const digits = s => (s.match(/\d/g) || []).length;
+
+  const payload = {
+    'profile pic': 0,
+    'nums/length username':
+      digits(username) / Math.max(username.length, 1),
+    'fullname words': cleanName ? cleanName.split(/\s+/).length : 0,
+    'nums/length fullname':
+      digits(cleanName) / Math.max(cleanName.length, 1),
+    'name==username': 0,
+    'description length': bio.length,
+    'external URL': /https?:\/\/|www\./i.test(textContent) ? 1 : 0,
+    'private': 0,
+    '#posts': Math.max(0, Math.floor(Number(p.posts) || 0)),
+    '#followers': Math.max(0, Math.floor(Number(p.followers) || 0)),
+    '#follows': Math.max(0, Math.floor(Number(p.following) || 0)),
+    model: 'random_forest'
+  };
+
+  const response = await fetch(CFG.API_BASE + '/predict', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || result.message ||
+      'Prediction failed: HTTP ' + response.status);
+  }
+
+  const probability = Number(result.fake_probability ?? 0);
+
+  return {...p,id: result.prediction_id,status: 'Open',date: new Date().toISOString().slice(0, 10),risk: clamp(probability),ml: clamp(probability),llm: 0,features: [],flags: [],
+    verdict: result.predicted_label || 'Prediction completed',rationale: result.note ||'This is a model estimate, not proof that an account is fake.',model: result.model,prediction_id: result.prediction_id};},
  async batch(names){await sleep(1200);return names.map((u,i)=>{const r=Math.random();const p={id:DB.profiles.length+i+1,username:u,platform:'Instagram',followers:Math.round(Math.random()*(r>.5?300:5000)),following:Math.round(Math.random()*2500),posts:Math.round(Math.random()*(r>.5?8:800)),age_days:Math.round(Math.random()*(r>.5?40:1500)),bio:r>.7?'DM for crypto giveaway':'',captions:'',status:'Open',date:new Date().toISOString().slice(0,10)};return Object.assign(p,scoreProfile(p))})}
 };
 const sleep=t=>new Promise(r=>setTimeout(r,t));
@@ -54,10 +116,39 @@ async function http(method,path,body){
   if(!r.ok)throw new Error(method+' '+path+' failed: '+r.status);
   return r.json();
 }
+API.predict = async (profile) =>
+  http('POST', '/predict', profile);
 const _mockBatch=API.batch;
 API.batch=async n=>CFG.USE_MOCK?_mockBatch(n):http('POST','/batch',{usernames:n});
 API.profiles=async()=>CFG.USE_MOCK?DB.profiles:http('GET','/profiles');
-API.updateStatus=async(id,status)=>CFG.USE_MOCK?null:http('PATCH','/profiles/'+id,{status});
+API.updateStatus = async (id, status) =>
+  CFG.USE_MOCK
+    ? null
+    : http('PUT', `/profiles/${id}/status`, { status });
 API.metrics=async()=>CFG.USE_MOCK?null:http('GET','/metrics');
-API.createReport=async id=>CFG.USE_MOCK?null:http('POST','/reports',{profile_id:id});
-API.login=async(email,password)=>CFG.USE_MOCK?{token:'demo'}:http('POST','/auth/login',{email,password});
+API.createReport = async (id, reason = 'Suspicious profile', details = '') =>
+  CFG.USE_MOCK
+    ? null
+    : http('POST', '/report', {
+        prediction_id: id,
+        reason,
+        details
+      });
+
+API.getReports = async () =>
+  CFG.USE_MOCK
+    ? []
+    : http('GET', '/reports');
+
+
+API.getProfiles = async () =>
+  CFG.USE_MOCK
+    ? []
+    : http('GET', '/profiles');
+
+API.login = async (email, password) =>
+  http('POST', '/login', {
+    email,
+    password
+  });
+
