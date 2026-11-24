@@ -1,50 +1,133 @@
-# FakeProfile Shield - Frontend
+# FakeProfile Shield
+### Fake Social Media Profile Detection and Reporting System
 
-Investigator-facing web UI for **Fake Social Media Profile Detection and Reporting System** (Team G-9, SVVV Indore, Jul-Dec 2026).
-Pure HTML/CSS/JS - no build step, no dependencies.
+**Team G-9 | B.Tech CSE (Data Science) | SVVV Indore**
 
-## Status
+FakeProfile Shield is a web-based system that detects potentially fake social media profiles using Machine Learning and provides profile management and reporting functionality.
 
-🚧 **In progress.** Frontend/UI is complete and functional as a standalone demo. Backend and model integration are planned for later this project cycle.
+## Technology Stack
 
-- ✅ Frontend UI (all pages, routing, mock data layer)
-- ✅ Mock scoring/API layer designed to swap cleanly to a live backend
-- 🔲 Backend API
-- 🔲 Trained classifier (RandomForest / GradientBoosting)
-- 🔲 LLM-based content analysis module
-- 🔲 Live model integration into dashboard
+- **Frontend:** HTML, CSS, JavaScript
+- **Backend:** Python Flask
+- **Database:** MySQL
+- **Machine Learning:** Random Forest and Gradient Boosting
+- **Authentication:** JWT
 
-Model Insights metrics and profile data shown in the demo are **mock/placeholder** until the backend and Kaggle-trained models are connected.
+## Features
 
-## Run
+- User login and authentication
+- Social media profile analysis
+- Fake profile prediction using ML models
+- Random Forest and Gradient Boosting model selection
+- Flagged profile management
+- Profile status management (Open, Escalated, Dismissed)
+- Report generation and management
+- Dashboard and model insights
 
-- Double-click `index.html`, **or**
-- `npx serve . -l 5173` (or `npm start`), then open <http://localhost:5173>
+## Machine Learning
 
-Demo login: any email/password.
+The system uses two trained classification models:
 
-## Structure
+1. Random Forest
+2. Gradient Boosting
+
+The models are trained using profile-related features such as username characteristics, profile picture availability, followers, following, posts, bio description, privacy settings, and external URL.
+
+### Model Performance
+
+| Model | Accuracy |
+|---|---:|
+| Random Forest | 91.67% |
+| Gradient Boosting | 90.00% |
+
+These results are based on the project's test dataset.
+
+## Project Structure
+
+```text
+Fake-Profile-Detection-system/
+│
+├── backend/
+│   ├── app.py
+│   ├── requirements.txt
+│   ├── schema.sql
+│   ├── train_model.py
+│   ├── test_db.py
+│   ├── data/
+│   └── models/
+│
+├── css/
+├── js/
+│   ├── api.js
+│   ├── actions.js
+│   ├── components.js
+│   ├── pages.js
+│   └── router.js
+│
+├── index.html
+├── package.json
+└── package-lock.json
 ```
-index.html          entry point
-css/style.css       theme (light/dark), layout, components
-js/api.js           config, mock data + scoring, API layer (mock <-> live)
-js/components.js    gauge, meters, tables, app shell
-js/pages.js         all pages (landing, login, dashboard, analyze, profiles, batch, reports, model, team, settings)
-js/actions.js       event handlers, profile detail, report view
-js/router.js        hash router + auth guard
-docs/API_CONTRACT.md  endpoints the backend must provide
+
+## Installation and Setup
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/paridhirainy26-glitch/Fake-Profile-Detection-system.git
+cd Fake-Profile-Detection-system
 ```
 
-Scripts are plain (non-module) files loaded in order, so the app also works from `file://`.
+### 2. Frontend setup
 
-## Pages
+```bash
+npm install
+npm start
+```
 
-Landing, Login, Dashboard, Analyze Profile, Flagged Profiles (+ detail), Batch Screening, Reports (+ printable report / PDF), Model Insights, Project & Team, Settings.
+Open `http://localhost:5173` in your browser.
 
-## Design decision: mock/live API split
+### 3. Backend setup
 
-The API layer (`js/api.js`) is built to swap between mock data and a live backend without touching the UI code — `docs/API_CONTRACT.md` defines the exact endpoints the backend needs to implement. This was intentional: the frontend was built ahead of the backend, so it needed to work standalone now and plug into the real classifier later without a rewrite.
+```bash
+cd backend
+python -m venv .venv
+```
 
-## Deploy on GitHub Pages
+Activate the virtual environment on Windows:
 
-Repo -> Settings -> Pages -> Deploy from branch `main` / root.
+```powershell
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Configure your local `.env` file with the required database and JWT settings.
+
+### 4. Database setup
+
+- Create the MySQL database.
+- Execute the SQL commands from `schema.sql`.
+- Configure database credentials in the backend `.env` file.
+
+### 5. Start the backend
+
+```bash
+python app.py
+```
+
+## Team
+
+**Team G-9**  
+B.Tech CSE (Data Science)  
+Shri Vaishnav Vidyapeeth Vishwavidyalaya, Indore
+
+**Project Guide:** Prof. Kamal Borana
+
+---
+
+*FakeProfile Shield – Detecting and reporting potentially fake social media profiles.*
